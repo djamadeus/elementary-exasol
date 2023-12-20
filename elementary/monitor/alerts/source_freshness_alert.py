@@ -2,6 +2,10 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from elementary.monitor.alerts.alert import AlertModel
+from elementary.monitor.data_monitoring.alerts.integrations.utils.report_link import (
+    ReportLinkData,
+    get_test_runs_link,
+)
 from elementary.utils.time import (
     convert_datetime_utc_str_to_timezone_str,
     datetime_strftime,
@@ -17,7 +21,7 @@ class SourceFreshnessAlertModel(AlertModel):
         identifier: str,
         normalized_status: str,
         path: str,
-        error: str,
+        error: Optional[str],
         alert_class_id: str,
         source_freshness_execution_id: str,
         model_unique_id: Optional[str] = None,
@@ -137,5 +141,20 @@ class SourceFreshnessAlertModel(AlertModel):
         )
 
     @property
-    def concise_name(self):
+    def concise_name(self) -> str:
         return f"source freshness alert - {self.source_name}.{self.identifier}"
+
+    @property
+    def error_message(self) -> str:
+        if self.status == "runtime error":
+            return f"Failed to calculate the source freshness\n```{self.error}```"
+        return self.result_description
+
+    @property
+    def summary(self) -> str:
+        if self.status == "runtime error":
+            return f"Failed to calculate the source freshness of `{self.source_name}`"
+        return f"Freshness exceeded the acceptable times on source `{self.source_name}`"
+
+    def get_report_link(self) -> Optional[ReportLinkData]:
+        return get_test_runs_link(self.report_url, self.source_freshness_execution_id)
