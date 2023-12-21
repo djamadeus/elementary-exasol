@@ -35,3 +35,5 @@ quoting:
   database: "{{ env_var('DATABASE_QUOTING', 'None') | as_native }}"
   schema: "{{ env_var('SCHEMA_QUOTING', 'None')  | as_native }}"
   identifier: "{{ env_var('IDENTIFIER_QUOTING', 'None') | as_native }}"
+
+##
