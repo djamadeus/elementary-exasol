@@ -2,6 +2,7 @@ import re
 from typing import Optional
 
 from elementary.clients.dbt.dbt_runner import DbtRunner
+from elementary.config.config import Config
 from elementary.monitor.data_monitoring.schema import (
     ResourceType,
     SelectorFilterSchema,
@@ -14,19 +15,16 @@ from elementary.utils.log import get_logger
 logger = get_logger(__name__)
 
 
-class InvalidSelectorError(Exception):
-    pass
-
-
 class SelectorFilter:
     def __init__(
         self,
+        config: Config,
         tracking: Optional[Tracking],
-        user_dbt_runner: Optional[DbtRunner] = None,
         selector: Optional[str] = None,
     ) -> None:
         self.tracking = tracking
         self.selector = selector
+        user_dbt_runner = self._create_user_dbt_runner(config)
         self.selector_fetcher = (
             SelectorFetcher(user_dbt_runner) if user_dbt_runner else None
         )
@@ -123,18 +121,19 @@ class SelectorFilter:
                     return SelectorFilterSchema(selector=selector, statuses=[])
         return data_monitoring_filter
 
+    def _create_user_dbt_runner(self, config: Config) -> Optional[DbtRunner]:
+        if config.project_dir:
+            return DbtRunner(
+                config.project_dir,
+                config.profiles_dir,
+                config.project_profile_target,
+                env_vars=config.env_vars,
+            )
+        else:
+            return None
+
     def get_filter(self) -> SelectorFilterSchema:
         return self.filter
-
-    def get_selector(self) -> Optional[str]:
-        return self.selector
-
-    def is_empty(self) -> bool:
-        if self.selector:
-            for selector, value in dict(self.filter).items():
-                if value and selector != "selector":
-                    return False
-        return True
 
     @staticmethod
     def _can_use_fetcher(selector):
@@ -148,31 +147,3 @@ class SelectorFilter:
         return all(
             [selector_type not in selector for selector_type in non_dbt_selectors]
         )
-
-    @staticmethod
-    def validate_report_selector(selector):
-        # If we start supporting multiple selectors we need to change this logic
-        if not selector:
-            return
-
-        valid_report_selectors = ["last_invocation", "invocation_id", "invocation_time"]
-        if all(
-            [selector_type not in selector for selector_type in valid_report_selectors]
-        ):
-            raise InvalidSelectorError("Selector is invalid for report: ", selector)
-
-    @staticmethod
-    def validate_alert_selector(selector):
-        # If we start supporting multiple selectors we need to change this logic
-        if not selector:
-            return
-
-        invalid_alert_selectors = [
-            "last_invocation",
-            "invocation_id",
-            "invocation_time",
-        ]
-        if any(
-            [selector_type in selector for selector_type in invalid_alert_selectors]
-        ):
-            raise InvalidSelectorError("Selector is invalid for alerts: ", selector)

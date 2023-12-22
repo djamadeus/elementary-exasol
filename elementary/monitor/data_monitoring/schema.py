@@ -10,6 +10,10 @@ from elementary.utils.time import DATETIME_FORMAT, convert_local_time_to_timezon
 logger = get_logger(__name__)
 
 
+class InvalidSelectorError(Exception):
+    pass
+
+
 class Status(Enum):
     WARN = "warn"
     FAIL = "fail"
@@ -55,6 +59,42 @@ class SelectorFilterSchema(BaseModel):
                 )
                 raise
         return None
+
+    def validate_report_selector(self):
+        # If we start supporting multiple selectors we need to change this logic
+        if not self.selector:
+            return
+
+        valid_report_selectors = ["last_invocation", "invocation_id", "invocation_time"]
+        if all(
+            [
+                selector_type not in self.selector
+                for selector_type in valid_report_selectors
+            ]
+        ):
+            raise InvalidSelectorError(
+                "Selector is invalid for report: ", self.selector
+            )
+
+    def validate_alert_selector(self):
+        # If we start supporting multiple selectors we need to change this logic
+        if not self.selector:
+            return
+
+        invalid_alert_selectors = [
+            "last_invocation",
+            "invocation_id",
+            "invocation_time",
+        ]
+        if any(
+            [
+                selector_type in self.selector
+                for selector_type in invalid_alert_selectors
+            ]
+        ):
+            raise InvalidSelectorError(
+                "Selector is invalid for alerts: ", self.selector
+            )
 
 
 class WarehouseInfo(BaseModel):
